@@ -29,6 +29,7 @@ class Repo(Protocol):
 
 def _get_git_reset_commands(base_commit: str) -> list[str]:
     return [
+        "git config core.sshCommand 'ssh -o StrictHostKeyChecking=accept-new'",
         "git fetch",
         "git status",
         "git restore .",
