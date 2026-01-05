@@ -2,6 +2,8 @@
 # This template is heavily inspired by anthropic's computer use demo, but you can use
 # it with any LM.
 agent:
+  model:
+      temperature: 1.0
   templates:
     system_template: |-
       You are a helpful assistant that can interact with a computer to solve tasks.

@@ -78,7 +78,7 @@ class GenericAPIModelConfig(PydanticBaseModel):
     per_instance_call_limit: int = Field(default=0, description="Per instance call limit.")
     temperature: float = 0.0
     """Sampling temperature"""
-    top_p: float | None = 1.0
+    top_p: float | None = None
     """Sampling top-p"""
     api_base: str | None = None
     api_version: str | None = None
