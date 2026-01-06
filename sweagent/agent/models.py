@@ -52,6 +52,16 @@ _THREADS_THAT_USED_API_KEYS = []
 """Keeps track of thread orders so that we can choose the same API key for the same thread."""
 
 
+def _is_gpt5_family(model_name: str) -> bool:
+    """Return True for GPT-5 family models (e.g., gpt-5, gpt-5-codex, gpt-5.1).
+
+    We strip common provider prefixes like `openai/` or `azure:`.
+    """
+
+    base = model_name.lower().split("/")[-1].split(":")[-1]
+    return base.startswith("gpt-5")
+
+
 class RetryConfig(PydanticBaseModel):
     """This configuration object specifies how many times to retry a failed LM API call."""
 
@@ -707,15 +717,41 @@ class LiteLLMModel(AbstractModel):
             extra_args["api_base"] = self.config.api_base
         if self.tools.use_function_calling:
             extra_args["tools"] = self.tools.tools
+            # In function-calling mode we expect exactly one tool call per assistant turn.
+            # Some models will otherwise respond with normal chat text.
+            if "tool_choice" not in self.config.completion_kwargs:
+                extra_args["tool_choice"] = "required"
+                # LiteLLM's Azure provider may require explicitly allow-listing OpenAI params.
+                # See error message suggesting allowed_openai_params=['tool_choice'].
+                if str(self.lm_provider).lower().startswith("azure"):
+                    existing_allowed = self.config.completion_kwargs.get("allowed_openai_params")
+                    allowed: list[str]
+                    if isinstance(existing_allowed, list):
+                        allowed = [str(x) for x in existing_allowed]
+                    else:
+                        allowed = []
+                    if "tool_choice" not in allowed:
+                        allowed.append("tool_choice")
+                    extra_args["allowed_openai_params"] = allowed
         # We need to always set max_tokens for anthropic models
         completion_kwargs = self.config.completion_kwargs
         if self.lm_provider == "anthropic":
             completion_kwargs["max_tokens"] = self.model_max_output_tokens
+
+        selected_temperature = self.config.temperature if temperature is None else temperature
+        if _is_gpt5_family(self.config.name) and selected_temperature != 1.0:
+            # LiteLLM enforces temperature=1 for GPT-5 models.
+            self.logger.warning(
+                "Model %r is GPT-5-family; forcing temperature=1.0 (requested %s).",
+                self.config.name,
+                selected_temperature,
+            )
+            selected_temperature = 1.0
         try:
             response: litellm.types.utils.ModelResponse = litellm.completion(  # type: ignore
                 model=self.config.name,
                 messages=messages,
-                temperature=self.config.temperature if temperature is None else temperature,
+                temperature=selected_temperature,
                 top_p=self.config.top_p,
                 api_version=self.config.api_version,
                 api_key=self.config.choose_api_key(),

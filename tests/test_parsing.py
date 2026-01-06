@@ -97,6 +97,11 @@ def test_function_calling_parser():
     with pytest.raises(FormatError):
         parser({"message": "No tool calls"}, [command])
 
+    # Test fallback: JSON tool call embedded in message
+    thought, action = parser({"message": '{"command": "ls"}'}, [command])
+    assert thought == '{"command": "ls"}'
+    assert action == "ls"
+
     # Test with multiple tool calls
     multiple_calls = {
         "message": "Multiple calls",

@@ -45,6 +45,98 @@ Read our [documentation][docs] to learn more:
 
 [docs]: https://swe-agent.com
 
+## 🔌 REST API
+
+SWE-agent provides a REST API server for programmatic access. Start the server with:
+
+```bash
+python -m sweagent.api.server
+```
+
+Or with custom options:
+
+```bash
+python -m sweagent.api.server --host 0.0.0.0 --port 8000 --log-level info
+```
+
+### Example: Solve a GitHub Issue
+
+The API now runs asynchronously. Send a POST request to `/run` endpoint to submit a job:
+
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent": {
+      "model": {
+        "name": "azure/gpt-5-chat",
+        "api_base": "https://<your-resource-name>.cognitiveservices.azure.com",
+        "api_version": "2025-04-01-preview",
+        "api_key": "'"$AZURE_OPENAI_API_KEY"'"
+      }
+    },
+    "problem_statement": {
+      "type": "github",
+      "github_url": "https://github.com/HakjunMIN/python-workshop/issues/1"
+    },
+    "env": {
+      "repo": {
+        "github_url": "https://github.com/HakjunMIN/python-workshop"
+      }
+    },
+    "actions": {
+      "open_pr": true
+    },
+    "env_vars": {
+      "GITHUB_TOKEN": "'"$GITHUB_TOKEN"'"
+    }
+  }'
+```
+
+**Response (immediate):**
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "message": "Job submitted successfully. Use /job/{job_id} to check status."
+}
+```
+
+### Check Job Status
+
+Use the `job_id` to check the status and retrieve results:
+
+```bash
+curl http://localhost:8000/job/550e8400-e29b-41d4-a716-446655440000
+```
+
+**Response:**
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "created_at": "2026-01-06T10:30:00.123456",
+  "completed_at": "2026-01-06T10:35:00.654321",
+  "result": {
+    "success": true,
+    "instance_id": "python-workshop-1",
+    "output_dir": "/path/to/output",
+    "patch": "...",
+    "exit_status": "completed",
+    "error": null
+  }
+}
+```
+
+**Job Status Values:**
+- `pending`: Job is queued
+- `running`: Job is currently executing
+- `completed`: Job finished successfully
+- `error`: Job encountered an error
+
+For more details on API configuration and available endpoints, see the [API documentation](https://swe-agent.com/latest/usage/api/).
+
+
 ## SWE-agent for offensive cybersecurity (EnIGMA) <a name="enigma"></a>
 
 <img src="https://github.com/user-attachments/assets/84599168-11a7-4776-8a49-33dbf0758bb2" height="80px"></img>

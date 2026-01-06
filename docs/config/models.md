@@ -82,6 +82,11 @@ agent:
 
 as other values aren't supported by `o1`.
 
+### GPT-5
+
+LiteLLM enforces `temperature: 1.0` for GPT-5 family models (e.g., `gpt-5`, `gpt-5-codex`).
+If your config sets a different temperature (commonly `0.0`), SWE-agent will automatically override it to `1.0` to avoid a request-time error.
+
 ## Using multiple keys
 
 We support rotating through multiple keys for [`run-batch`](../usage/batch_mode.md). For this, concatenate all keys with `:::` and set them via the `--agent.model.api_key` flag.

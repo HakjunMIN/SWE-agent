@@ -4,6 +4,7 @@ import asyncio
 import copy
 import json
 import logging
+import sys
 import time
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, Literal
@@ -1104,6 +1105,7 @@ class DefaultAgent(AbstractAgent):
             )
 
         n_format_fails = 0
+        last_requeryable_exc_info: tuple[type[BaseException] | None, BaseException | None, Any] | None = None
         while n_format_fails < self.max_requeries:
             try:
                 return self.forward(history)
@@ -1119,11 +1121,13 @@ class DefaultAgent(AbstractAgent):
 
             except FormatError as e:
                 n_format_fails += 1
+                last_requeryable_exc_info = sys.exc_info()
                 history = handle_error_with_retry(
                     exception=e, template=self.tools.config.format_error_template, n_requeries=n_format_fails
                 )
             except _BlockedActionError as e:
                 n_format_fails += 1
+                last_requeryable_exc_info = sys.exc_info()
                 history = handle_error_with_retry(
                     exception=e, template=self.tools.config.filter.blocklist_error_template, n_requeries=n_format_fails
                 )
@@ -1134,18 +1138,21 @@ class DefaultAgent(AbstractAgent):
                 pass
             except BashIncorrectSyntaxError as e:
                 n_format_fails += 1
+                last_requeryable_exc_info = sys.exc_info()
                 history = handle_error_with_retry(
                     exception=e,
                     template=self.templates.shell_check_error_template,
                     n_requeries=n_format_fails,
                 )
             except _RetryWithOutput as e:
+                last_requeryable_exc_info = sys.exc_info()
                 history = handle_error_with_retry(
                     exception=e,
                     template=self.templates.next_step_template,
                     n_requeries=n_format_fails,
                 )
             except _RetryWithoutOutput:
+                last_requeryable_exc_info = sys.exc_info()
                 pass
                 # Requery with the same template as the last step
 
@@ -1208,10 +1215,17 @@ class DefaultAgent(AbstractAgent):
                     "exit_error",
                     f"Exit due to unknown error: {e}",
                 )
-        self.logger.exception(
-            "Exit due to repeated format/blocklist/bash syntax errors",
-            exc_info=True,
-        )
+        # We are outside of any active exception here, so using logger.exception(exc_info=True)
+        # would produce a misleading "NoneType: None" traceback. Instead, surface the last
+        # captured requeryable exception (if any).
+        if last_requeryable_exc_info and last_requeryable_exc_info[0] is not None:
+            self.logger.error(
+                "Exit due to repeated format/blocklist/bash syntax errors (last error: %s)",
+                last_requeryable_exc_info[1],
+                exc_info=last_requeryable_exc_info,
+            )
+        else:
+            self.logger.error("Exit due to repeated format/blocklist/bash syntax errors")
         return handle_error_with_autosubmission(
             "exit_format",
             "Exit due to repeated format/blocklist/bash syntax errors",
