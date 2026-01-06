@@ -11,11 +11,13 @@ tools:
       * The `create` command cannot be used if the specified `path` already exists as a file
       * If a `command` generates a long output, it will be truncated and marked with `<response clipped>`
       * The `undo_edit` command will revert the last edit made to the file at `path`
+      * IMPORTANT: When using `view_range`, prefer reading larger ranges (100-500 lines) to get sufficient context. The token limit is 400,000 tokens, so reading extensively is encouraged to understand code structure.
 
       Notes for using the `str_replace` command:
       * The `old_str` parameter should match EXACTLY one or more consecutive lines from the original file. Be mindful of whitespaces!
       * If the `old_str` parameter is not unique in the file, the replacement will not be performed. Make sure to include enough context in `old_str` to make it unique
       * The `new_str` parameter should contain the edited lines that should replace the `old_str`
+      * When including context in `old_str`, include substantial surrounding code (20-50 lines before and after) to ensure uniqueness and provide better context.
     arguments:
       - name: command
         type: string
@@ -50,7 +52,7 @@ tools:
         type: array
         items:
           type: integer
-        description: "Optional parameter of `view` command when `path` points to a file. If none is given, the full file is shown. If provided, the file will be shown in the indicated line number range, e.g. [11, 12] will show lines 11 and 12. Indexing at 1 to start. Setting `[start_line, -1]` shows all lines from `start_line` to the end of the file."
+        description: "Optional parameter of `view` command when `path` points to a file. If none is given, the full file is shown. If provided, the file will be shown in the indicated line number range, e.g. [11, 200] will show lines 11-200. Indexing at 1 to start. Setting `[start_line, -1]` shows all lines from `start_line` to the end of the file. IMPORTANT: With a 400K token context, prefer reading large ranges (100-500 lines or more) to get comprehensive context rather than small snippets."
         required: false
         argument_format: "--view_range {{value|join(' ')}}"
 state_command: "_state_anthropic"
