@@ -400,9 +400,12 @@ class FunctionCallingParser(AbstractParseFunction, BaseModel):
         if not command:
             msg = f"Command '{name}' not found in list of available commands."
             raise FunctionCallingFormatError(msg, "invalid_command")
-        if not isinstance(tool_call["function"]["arguments"], dict):
+        raw_arguments = tool_call["function"]["arguments"]
+        if isinstance(raw_arguments, dict):
+            values = raw_arguments
+        else:
             try:
-                values = json.loads(tool_call["function"]["arguments"])
+                values = json.loads(raw_arguments)
             except json.JSONDecodeError:
                 msg = "Tool call arguments are not valid JSON."
                 raise FunctionCallingFormatError(msg, "invalid_json")
@@ -441,6 +444,37 @@ class FunctionCallingParser(AbstractParseFunction, BaseModel):
         tool_calls = model_response.get("tool_calls", None)
         if tool_calls is None or len(tool_calls) != 1:
             num_tools = len(tool_calls) if tool_calls else 0
+
+            # Some models/providers occasionally return a JSON "pseudo tool call" in the
+            # message content instead of populating tool_calls.
+            # Example: {"command": "submit"}
+            if num_tools == 0 and isinstance(message, str):
+                try:
+                    data = json.loads(message)
+                except json.JSONDecodeError:
+                    data = None
+                if isinstance(data, dict):
+                    command_name: str | None = None
+                    arguments: dict[str, Any] = {}
+
+                    cmd_field = data.get("command")
+                    if isinstance(cmd_field, str):
+                        command_name = cmd_field
+                    elif isinstance(cmd_field, dict):
+                        name_field = cmd_field.get("name")
+                        if isinstance(name_field, str):
+                            command_name = name_field
+                        args_field = cmd_field.get("arguments")
+                        if isinstance(args_field, dict):
+                            arguments = args_field
+
+                    if command_name:
+                        action = self._parse_tool_call(
+                            {"function": {"name": command_name, "arguments": arguments}},
+                            commands,
+                        )
+                        return message, action
+
             msg = (
                 f"Expected exactly one tool call in model response - received {num_tools} "
                 f"tool calls with message: {message}"

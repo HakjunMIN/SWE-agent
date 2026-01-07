@@ -2868,6 +2868,7 @@ name = "sweagent"
 source = { editable = "." }
 dependencies = [
     { name = "datasets" },
+    { name = "fastapi" },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "flask-socketio" },
@@ -2889,6 +2890,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "textual" },
     { name = "unidiff" },
+    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
@@ -2909,6 +2911,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "datasets" },
+    { name = "fastapi", specifier = ">=0.110" },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "flask-socketio" },
@@ -2941,6 +2944,7 @@ requires-dist = [
     { name = "tenacity" },
     { name = "textual", specifier = ">=1.0.0" },
     { name = "unidiff" },
+    { name = "uvicorn", specifier = ">=0.27" },
 ]
 provides-extras = ["dev"]
 

@@ -21,3 +21,19 @@ def test_litellm_mock():
         ),
     )
     assert model.query(History([{"role": "user", "content": "Hello, world!"}])) == {"message": "Hello, world!"}  # type: ignore
+
+
+def test_litellm_mock_gpt5_forces_temperature_one():
+    model = get_model(
+        GenericAPIModelConfig(
+            name="gpt-5",
+            temperature=0.0,
+            completion_kwargs={"mock_response": "Hello, world!"},
+            api_key=SecretStr("dummy_key"),
+            top_p=None,
+        ),
+        ToolConfig(
+            parse_function=Identity(),
+        ),
+    )
+    assert model.query(History([{"role": "user", "content": "Hello, world!"}])) == {"message": "Hello, world!"}  # type: ignore

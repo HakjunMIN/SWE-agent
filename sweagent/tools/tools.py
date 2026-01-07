@@ -342,7 +342,10 @@ class ToolHandler:
             return self.mock_state
 
         for state_command in self.config.state_commands:
-            env.communicate(state_command, check="warn")
+            output = env.communicate(state_command, check="warn", error_msg=f"State command '{state_command}' failed")
+            # Check if the command produced any meaningful output beyond exit code markers
+            if output and output.strip() and not output.strip().startswith("EXITCODESTART"):
+                self.logger.debug(f"State command '{state_command}' output: {output[:100]}")
         combined_state = self._get_state(env)
         self.logger.debug(f"Retrieved state from environment: {combined_state}")
         return combined_state

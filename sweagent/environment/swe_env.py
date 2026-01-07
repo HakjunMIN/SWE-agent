@@ -222,13 +222,15 @@ class SWEEnv:
         )
         output = r.output
         self.logger.log(logging.TRACE, "Output:\n%s", output)  # type: ignore
-        if check != "ignore" and r.exit_code != 0:
+        if check != "ignore" and r.exit_code is not None and r.exit_code != 0:
             self.logger.error(f"{error_msg}:\n{output}")
             msg = f"Command {input!r} failed ({r.exit_code=}): {error_msg}"
             self.logger.error(msg)
             if check == "raise":
                 self.close()
                 raise RuntimeError(msg)
+        elif check != "ignore" and r.exit_code is None:
+            self.logger.warning(f"Command {input!r} completed but exit code is None. Output: {output[:200]}")
         return output
 
     def read_file(self, path: str | PurePath, encoding: str | None = None, errors: str | None = None) -> str:
