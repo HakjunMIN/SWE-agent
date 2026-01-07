@@ -50,13 +50,13 @@ Read our [documentation][docs] to learn more:
 SWE-agent provides a REST API server for programmatic access. Start the server with:
 
 ```bash
-python -m sweagent.api.server
+uv run python -m sweagent run-api
 ```
 
 Or with custom options:
 
 ```bash
-python -m sweagent.api.server --host 0.0.0.0 --port 8000 --log-level info
+uv run python -m sweagent run-api --host 0.0.0.0 --port 8000
 ```
 
 ### Example: Solve a GitHub Issue
