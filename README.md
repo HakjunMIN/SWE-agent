@@ -134,6 +134,9 @@ curl http://localhost:8000/job/550e8400-e29b-41d4-a716-446655440000
 - `completed`: Job finished successfully
 - `error`: Job encountered an error
 
+>[!TIP]
+> You can leverage Queue management systems like [Azure Service Bus](https://azure.microsoft.com/en-us/services/service-bus/) or [RabbitMQ](https://www.rabbitmq.com/), Kafka for more robust job handling in production environments.
+
 For more details on API configuration and available endpoints, see the [API documentation](https://swe-agent.com/latest/usage/api/).
 
 
