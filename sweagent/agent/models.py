@@ -45,7 +45,34 @@ try:
 except ImportError:
     readline = None
 
+try:
+    from azure.identity import DefaultAzureCredential
+    _AZURE_CREDENTIAL = DefaultAzureCredential()
+    _AZURE_IDENTITY_AVAILABLE = True
+except ImportError:
+    _AZURE_CREDENTIAL = None
+    _AZURE_IDENTITY_AVAILABLE = False
+
 litellm.suppress_debug_info = True
+
+
+def _get_azure_ad_token() -> str | None:
+    """Get Azure AD token using DefaultAzureCredential.
+    Returns None if azure-identity is not installed or token acquisition fails.
+    """
+    if not _AZURE_IDENTITY_AVAILABLE or _AZURE_CREDENTIAL is None:
+        return None
+    try:
+        token = _AZURE_CREDENTIAL.get_token("https://cognitiveservices.azure.com/.default")
+        return token.token
+    except Exception as e:
+        get_logger("swea-lm", emoji="🤖").debug(f"Failed to get Azure AD token: {e}")
+        return None
+
+
+def _is_azure_model(model_name: str) -> bool:
+    """Check if the model is an Azure OpenAI model."""
+    return model_name.lower().startswith("azure/") or model_name.lower().startswith("azure_ad/")
 
 
 _THREADS_THAT_USED_API_KEYS = []
@@ -747,6 +774,23 @@ class LiteLLMModel(AbstractModel):
                 selected_temperature,
             )
             selected_temperature = 1.0
+        # Determine API key or Azure AD token
+        api_key = self.config.choose_api_key()
+        azure_ad_token = None
+        
+        # For Azure models, prefer Azure AD token over API key
+        if _is_azure_model(self.config.name):
+            # Try to get Azure AD token using DefaultAzureCredential
+            azure_ad_token = _get_azure_ad_token()
+            if azure_ad_token:
+                self.logger.debug("Using Azure AD token from DefaultAzureCredential")
+                api_key = None  # Clear API key to ensure Azure AD token is used
+            elif api_key is None:
+                self.logger.warning(
+                    "No API key set and failed to get Azure AD token. "
+                    "Install azure-identity package and run 'az login' for Azure AD auth."
+                )
+
         try:
             response: litellm.types.utils.ModelResponse = litellm.completion(  # type: ignore
                 model=self.config.name,
@@ -754,7 +798,8 @@ class LiteLLMModel(AbstractModel):
                 temperature=selected_temperature,
                 top_p=self.config.top_p,
                 api_version=self.config.api_version,
-                api_key=self.config.choose_api_key(),
+                api_key=api_key,
+                azure_ad_token=azure_ad_token,
                 fallbacks=self.config.fallbacks,
                 **completion_kwargs,
                 **extra_args,
